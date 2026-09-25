@@ -1,0 +1,19 @@
+# secrets
+.env
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# notebooks
+.ipynb_checkpoints/
+
+# data (keep raw/private data out of git by default)
+data/
+
+# spotify auth cache
+.spotipyoauthcache
+
+# macOS
+.DS_Store
