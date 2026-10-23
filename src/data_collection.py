@@ -14,7 +14,7 @@ load_dotenv()
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 # You MUST add this redirect URI to your Spotify app settings on the developer dashboard
-SPOTIFY_REDIRECT_URI = "http://localhost:8888/callback" 
+SPOTIFY_REDIRECT_URI = "http://127.0.0.1:8888/callback"
 SCOPE = "user-library-read"
 
 def get_spotify_client():
@@ -40,13 +40,13 @@ def get_spotify_client():
     print("Spotify client authenticated.")
     return sp
 
-def fetch_saved_tracks(sp):
+def fetch_saved_tracks(sp, max_tracks=None):
     """
     Fetches all of the current user's saved tracks from their library.
-    Handles pagination to retrieve all tracks.
+    Handles pagination to retrieve all tracks, or up to max_tracks if specified.
     """
     print("Fetching saved tracks...")
-  all_tracks = []
+    all_tracks = []
     
     # Get total number of saved tracks for progress indication
     try:
@@ -56,11 +56,15 @@ def fetch_saved_tracks(sp):
         print(f"Error fetching total tracks: {e}")
         return []
 
+    target_total = min(total, max_tracks) if max_tracks is not None else total
+    if target_total <= 0:
+        return []
+
     # The API returns max 50 tracks per request
-    limit = 50
     offset = 0
     
-    while offset < total:
+    while offset < target_total:
+        limit = min(50, target_total - offset)
         try:
             results = sp.current_user_saved_tracks(limit=limit, offset=offset)
             if not results['items']:
@@ -68,7 +72,7 @@ def fetch_saved_tracks(sp):
                 
             all_tracks.extend(results['items'])
             offset += len(results['items'])
-            print(f"Fetched {offset}/{total} tracks...")
+            print(f"Fetched {offset}/{target_total} tracks...")
 
         except spotipy.exceptions.SpotifyException as e:
             print(f"Error fetching tracks at offset {offset}: {e}")
@@ -165,11 +169,17 @@ def main():
         action='store_true',
         help="Include audio features for each track (takes longer)."
     )
+    parser.add_argument(
+        '--max-tracks',
+        type=int,
+        default=None,
+        help="Optional limit on the number of saved tracks to fetch (for testing)."
+    )
     args = parser.parse_args()
 
     try:
         sp = get_spotify_client()
-        saved_tracks_items = fetch_saved_tracks(sp)
+        saved_tracks_items = fetch_saved_tracks(sp, max_tracks=args.max_tracks)
         
         df = process_tracks_to_dataframe(
             saved_tracks_items, 
